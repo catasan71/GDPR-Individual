@@ -68,8 +68,18 @@ export default function App() {
       setCurrentUser(user);
       if (user) {
         try {
-          // Load user data from Firestore
-          const data = await getUserData(user.uid);
+          // Prevent the app from hanging on "Se încarcă..." if Firestore is not initialized or offline.
+          // We race the getUserData call against a 4-second timeout.
+          const dbFetchPromise = getUserData(user.uid);
+          const timeoutPromise = new Promise<null>((resolve) => {
+            setTimeout(() => {
+              console.warn("Firestore getUserData timed out after 4000ms. Falling back to default state.");
+              resolve(null);
+            }, 4000);
+          });
+
+          const data = await Promise.race([dbFetchPromise, timeoutPromise]);
+          
           if (data && data.profile && Object.keys(data.profile).length > 0) {
             setUserState({
               isOnboardingComplete: true,
@@ -93,7 +103,7 @@ export default function App() {
             setView('ONBOARDING');
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error("Error fetching user data from Firestore:", error);
           // If there's an error (e.g., permission denied initially), still go to onboarding
           setView('ONBOARDING');
         }
@@ -107,6 +117,17 @@ export default function App() {
     });
     return () => unsubscribe();
   }, []);
+
+  // Safety backup timer to prevent infinite "Se încarcă..." if Firebase Auth is slow or blocked (e.g., in iframes, third-party cookie blockers, or missing authorized domains in Vercel)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isAuthReady) {
+        console.warn("Firebase Auth initialization timed out (3s). Proceeding with fallback ready state.");
+        setIsAuthReady(true);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isAuthReady]);
 
   // Save to Firestore whenever userState changes (if logged in and not demo)
   useEffect(() => {
@@ -184,16 +205,28 @@ export default function App() {
 
   const handleOnboardingComplete = (profile: CompanyProfile) => {
     const docs = calculateDocuments(profile);
+    const cachedPayment = localStorage.getItem('payment_success_flag') === 'true';
+    if (cachedPayment) {
+      localStorage.removeItem('payment_success_flag');
+    }
+    const finalStatus = (cachedPayment || userState.subscriptionStatus === 'active') ? 'active' : 'trial';
+
     setUserState(prev => ({
       isOnboardingComplete: true,
       isDemo: false,
-      subscriptionStatus: 'trial',
+      subscriptionStatus: finalStatus,
       profile: {
           ...prev.profile,
           ...profile
       },
       documents: docs,
     }));
+
+    if (finalStatus === 'active') {
+      setShowSubscriptionSuccess(true);
+      setTimeout(() => setShowSubscriptionSuccess(false), 4000);
+    }
+
     setView('DASHBOARD');
   };
 

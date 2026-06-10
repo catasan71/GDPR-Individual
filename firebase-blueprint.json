@@ -17,9 +17,27 @@
         "processCNPLegitimateInterest": { "type": "boolean" },
         "thirdPartyServices": { "type": "array", "items": { "type": "string" } },
         "termsAcceptedAt": { "type": "string", "format": "date-time" },
-        "privacyAcceptedAt": { "type": "string", "format": "date-time" }
+        "privacyAcceptedAt": { "type": "string", "format": "date-time" },
+        "billingDetails": { "$ref": "BillingDetails" }
       },
       "required": ["name", "cui", "industry"]
+    },
+    "BillingDetails": {
+      "title": "BillingDetails",
+      "description": "Invoice details of the client, mostly legal entities",
+      "type": "object",
+      "properties": {
+        "entityType": { "type": "string", "enum": ["company", "individual"] },
+        "companyName": { "type": "string" },
+        "cui": { "type": "string" },
+        "regCom": { "type": "string" },
+        "address": { "type": "string" },
+        "county": { "type": "string" },
+        "city": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["entityType", "companyName", "cui", "address", "county", "city", "email"]
     },
     "DocumentVersion": {
       "title": "DocumentVersion",

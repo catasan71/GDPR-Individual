@@ -40,7 +40,22 @@ async function startServer() {
         planName = "Business";
       }
 
-      const isSandbox = process.env.REVOLUT_IS_SANDBOX !== "false";
+      // Automatically detect if key is Sandbox or Production
+      let isSandbox = true;
+      if (process.env.REVOLUT_IS_SANDBOX === "false") {
+        isSandbox = false;
+      } else if (process.env.REVOLUT_IS_SANDBOX === "true") {
+        isSandbox = true;
+      } else {
+        // If not explicitly set, auto-detect relative to key format
+        const lowerKey = secretKey.toLowerCase();
+        if (lowerKey.includes("sandbox") || lowerKey.includes("sand")) {
+          isSandbox = true;
+        } else {
+          isSandbox = false; // Default to production for live-keys
+        }
+      }
+
       const baseUrl = isSandbox 
         ? "https://sandbox-merchant.revolut.com/api/1.0" 
         : "https://merchant.revolut.com/api/1.0";
@@ -80,14 +95,19 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error("Revolut Order creation error details:", error.response?.data || error.message);
+      let errorMessage = error.response?.data?.description || error.response?.data?.message || error.message || "Failed to create Revolut Checkout Session";
+      if (error.response?.status === 401) {
+        errorMessage = `Eroare de autentificare (401) la Revolut. Cheia ta API (REVOLUT_SECRET_KEY) nu este valabilă sau nu se potrivește cu mediul selectat (momentan configurat ca fiind ${isSandbox ? "SANDBOX" : "PRODUCȚIE"}). Dacă ai o cheie reală de producție, asigură-te că setezi variabila REVOLUT_IS_SANDBOX=false în setări.`;
+      }
       res.status(500).json({ 
-        error: error.response?.data?.description || error.response?.data?.message || error.message || "Failed to create Revolut Checkout Session" 
+        error: errorMessage 
       });
     }
   });
 
   // Revolut Merchant API - Check Order status
   app.get("/api/revolut/order-status/:orderId", async (req, res) => {
+    let isSandbox = true;
     try {
       const { orderId } = req.params;
       const secretKey = process.env.REVOLUT_SECRET_KEY;
@@ -96,7 +116,20 @@ async function startServer() {
         return res.status(400).json({ error: "Revolut API secret key has not been configured." });
       }
 
-      const isSandbox = process.env.REVOLUT_IS_SANDBOX !== "false";
+      // Automatically detect if key is Sandbox or Production
+      if (process.env.REVOLUT_IS_SANDBOX === "false") {
+        isSandbox = false;
+      } else if (process.env.REVOLUT_IS_SANDBOX === "true") {
+        isSandbox = true;
+      } else {
+        const lowerKey = secretKey.toLowerCase();
+        if (lowerKey.includes("sandbox") || lowerKey.includes("sand")) {
+          isSandbox = true;
+        } else {
+          isSandbox = false;
+        }
+      }
+
       const baseUrl = isSandbox 
         ? "https://sandbox-merchant.revolut.com/api/1.0" 
         : "https://merchant.revolut.com/api/1.0";
@@ -116,7 +149,11 @@ async function startServer() {
       });
     } catch (error: any) {
       console.error("Revolut check order status error:", error.response?.data || error.message);
-      res.status(500).json({ error: error.message || "Failed to retrieve order status from Revolut" });
+      let errorMessage = error.message || "Failed to retrieve order status from Revolut";
+      if (error.response?.status === 401) {
+        errorMessage = `Eroare de autentificare (401) la Revolut pentru verificarea comenzii. Mediul detectat: ${isSandbox ? "SANDBOX" : "PRODUCȚIE"}.`;
+      }
+      res.status(500).json({ error: errorMessage });
     }
   });
 

@@ -19,6 +19,18 @@ export enum DocType {
   DECIZIE_DPO = 'decizie_dpo',
 }
 
+export interface BillingDetails {
+  entityType: 'company' | 'individual';
+  companyName: string;
+  cui: string;
+  regCom?: string;
+  address: string;
+  county: string;
+  city: string;
+  email: string;
+  phone?: string;
+}
+
 export interface CompanyProfile {
   name: string;
   cui: string;
@@ -33,6 +45,7 @@ export interface CompanyProfile {
   thirdPartyServices: string[];
   termsAcceptedAt?: Date;
   privacyAcceptedAt?: Date;
+  billingDetails?: BillingDetails;
 }
 
 export interface DocumentVersion {

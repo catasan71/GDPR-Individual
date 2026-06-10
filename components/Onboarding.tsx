@@ -17,14 +17,35 @@ const steps = [
 
 export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [data, setData] = useState<Partial<CompanyProfile>>({
-    thirdPartyServices: [],
-    processSensitiveData: false,
-    processCNPLegitimateInterest: false,
-    hasWebsite: false,
-    websiteUrl: '',
-    hasNewsletter: false,
-    hasCCTV: false,
+  const [data, setData] = useState<Partial<CompanyProfile>>(() => {
+    let initialName = '';
+    let initialCui = '';
+    let parsedBilling = undefined;
+
+    try {
+      const stored = localStorage.getItem('payer_billing_details');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        parsedBilling = parsed;
+        initialName = parsed.companyName || '';
+        initialCui = parsed.cui || '';
+      }
+    } catch (e) {
+      console.error('Error prefilling onboarding from storage:', e);
+    }
+
+    return {
+      name: initialName,
+      cui: initialCui,
+      thirdPartyServices: [],
+      processSensitiveData: false,
+      processCNPLegitimateInterest: false,
+      hasWebsite: false,
+      websiteUrl: '',
+      hasNewsletter: false,
+      hasCCTV: false,
+      billingDetails: parsedBilling
+    };
   });
 
   const handleNext = () => {
