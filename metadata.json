@@ -1,0 +1,6 @@
+{
+  "name": "GDPR Rapid - Conformitate IMM",
+  "description": "Platformă SaaS pentru IMM-uri din România pentru generarea documentației GDPR și monitorizarea conformității în 30 de minute.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

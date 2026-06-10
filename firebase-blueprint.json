@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "CompanyProfile": {
+      "title": "CompanyProfile",
+      "description": "Profile of the company using the GDPR app",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cui": { "type": "string" },
+        "industry": { "type": "string" },
+        "employeeCount": { "type": "number" },
+        "hasWebsite": { "type": "boolean" },
+        "websiteUrl": { "type": "string" },
+        "hasNewsletter": { "type": "boolean" },
+        "hasCCTV": { "type": "boolean" },
+        "processSensitiveData": { "type": "boolean" },
+        "processCNPLegitimateInterest": { "type": "boolean" },
+        "thirdPartyServices": { "type": "array", "items": { "type": "string" } },
+        "termsAcceptedAt": { "type": "string", "format": "date-time" },
+        "privacyAcceptedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "cui", "industry"]
+    },
+    "DocumentVersion": {
+      "title": "DocumentVersion",
+      "description": "A version of a generated document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "content": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "required": ["id", "date", "content"]
+    },
+    "DocumentItem": {
+      "title": "DocumentItem",
+      "description": "A GDPR document generated for the company",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "isMandatory": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["missing", "generated", "approved"] },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "content": { "type": "string" },
+        "history": { "type": "array", "items": { "$ref": "DocumentVersion" } }
+      },
+      "required": ["id", "type", "title", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "CompanyProfile",
+      "description": "User profile containing company information"
+    },
+    "/users/{userId}/documents/{docId}": {
+      "schema": "DocumentItem",
+      "description": "GDPR documents generated for the user"
+    },
+    "/users/{userId}/documents/{docId}/versions/{versionId}": {
+      "schema": "DocumentVersion",
+      "description": "History of document versions"
+    }
+  }
+}
