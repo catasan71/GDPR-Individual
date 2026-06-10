@@ -8,11 +8,21 @@ interface LandingPageProps {
   onGetStarted: () => void;
   onLogin: () => void;
   onDemo: () => void;
+  currentUser?: any;
+  onContinueOnboarding?: () => void;
+  onLogout?: () => void;
 }
 
 type LegalPageType = 'terms' | 'privacy' | 'cookies' | null;
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin, onDemo }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ 
+  onGetStarted, 
+  onLogin, 
+  onDemo,
+  currentUser,
+  onContinueOnboarding,
+  onLogout
+}) => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeLegal, setActiveLegal] = useState<LegalPageType>(null);
 
@@ -234,15 +244,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
             <button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors">Întrebări</button>
           </div>
           <div className="flex items-center gap-4">
-            <button onClick={onLogin} className="text-slate-300 hover:text-white font-medium text-sm">
-              Intră în cont
-            </button>
-            <button 
-              onClick={onGetStarted}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full font-medium text-sm transition-all shadow-lg shadow-blue-900/50"
-            >
-              Începe Gratuit
-            </button>
+            {currentUser ? (
+              <>
+                <span className="text-xs text-slate-400 hidden lg:inline max-w-[150px] truncate">
+                  Salut, {currentUser.email}
+                </span>
+                <button 
+                  onClick={onLogout} 
+                  className="text-slate-300 hover:text-red-400 font-medium text-sm transition-colors"
+                >
+                  Deconectare
+                </button>
+                <button 
+                  onClick={onContinueOnboarding}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full font-medium text-sm transition-all shadow-lg shadow-blue-900/50"
+                >
+                  Continuă Configurare
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={onLogin} className="text-slate-300 hover:text-white font-medium text-sm">
+                  Intră în cont
+                </button>
+                <button 
+                  onClick={onGetStarted}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full font-medium text-sm transition-all shadow-lg shadow-blue-900/50"
+                >
+                  Începe Gratuit
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -262,13 +294,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onLogin,
             Singura platformă din România care generează, actualizează și garantează corectitudinea documentelor tale juridice în fața controalelor ANSPDCP.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <button 
-              onClick={onGetStarted}
-              className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2"
-            >
-              Start Configurare
-              <ArrowRight size={20} />
-            </button>
+            {currentUser ? (
+              <button 
+                onClick={onContinueOnboarding}
+                className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2"
+              >
+                Continuă Configurare GDPR
+                <ArrowRight size={20} />
+              </button>
+            ) : (
+              <button 
+                onClick={onGetStarted}
+                className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2"
+              >
+                Start Configurare
+                <ArrowRight size={20} />
+              </button>
+            )}
             <button 
               onClick={onDemo}
               className="w-full sm:w-auto px-8 py-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-lg transition-all border border-slate-700 flex items-center justify-center gap-2 group"

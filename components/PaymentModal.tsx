@@ -19,6 +19,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ planId, onSuccess, o
   const [activeTab, setActiveTab] = useState<'pay' | 'transfer'>('pay');
   const [isApiConfigured, setIsApiConfigured] = useState<boolean | null>(null);
   const [checkingConfig, setCheckingConfig] = useState(true);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [showRedirectNotice, setShowRedirectNotice] = useState(false);
 
   // Billing details states
   const [paymentStep, setPaymentStep] = useState<'billing' | 'payment'>('billing');
@@ -188,8 +190,19 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ planId, onSuccess, o
         localStorage.setItem('payer_email_prefill', payerEmail.trim());
         localStorage.setItem('revolut_pending_order_id', response.data.orderId);
         
-        // Open Revolut checkout URL
-        window.location.href = response.data.checkoutUrl;
+        const url = response.data.checkoutUrl;
+        setCheckoutUrl(url);
+        setShowRedirectNotice(true);
+
+        // Try to open automatically in a new window/tab as a bonus. If blocked, the user has the clear button!
+        try {
+          const newWindow = window.open(url, '_blank');
+          if (newWindow) {
+            newWindow.focus();
+          }
+        } catch (popupErr) {
+          console.warn("Popup blocked by browser. User will use the manual button.", popupErr);
+        }
       } else {
         throw new Error(response.data.message || 'Nu s-a putut genera link-ul de plată.');
       }
@@ -547,56 +560,95 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ planId, onSuccess, o
 
                 {activeTab === 'pay' && isApiConfigured ? (
                   /* Automated Live Revolut Merchant API payment */
-                  <form onSubmit={handleAutomatedCheckout} className="space-y-5">
-                    <div className="bg-slate-950/40 p-5 rounded-xl border border-slate-800 space-y-4">
-                      <div className="flex items-center gap-3 text-sm text-blue-400 font-medium">
-                        <Lock size={16} />
-                        <span>Plată automată securizată de Revolut Bank</span>
+                  showRedirectNotice && checkoutUrl ? (
+                    <div className="space-y-4 text-center py-6 animate-in fade-in duration-200 bg-slate-950/40 p-5 rounded-xl border border-slate-805">
+                      <div className="w-14 h-14 bg-blue-600/10 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <Lock size={28} className="animate-pulse" />
                       </div>
+                      <h3 className="text-lg font-bold text-white">Sesiune de plată pregătită!</h3>
+                      <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
+                        Pentru securitatea tranzacției, Revolut solicită deschiderea paginii de plată într-o filă nouă dedicată.
+                      </p>
                       
-                      <div className="space-y-2">
-                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                          Confirmare Adresă de Email Tranzacție
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          placeholder="nume@companie.ro"
-                          value={payerEmail}
-                          onChange={(e) => setPayerEmail(e.target.value)}
-                          className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 outline-none rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 transition-colors font-sans"
-                        />
-                        <span className="block text-[10px] text-slate-500">
-                          Instrucțiunile de conectare la platformă se vor emite pe acest email după finalizare în siguranță.
-                        </span>
+                      <div className="pt-2 flex flex-col gap-3">
+                        <a
+                          href={checkoutUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-bold text-center block transition-all shadow-xl shadow-blue-900/40 flex items-center justify-center gap-2 hover:scale-[1.01]"
+                        >
+                          <span>Deschide Pagina de Plată Securizată ({plan.price})</span>
+                          <ExternalLink size={18} />
+                        </a>
+                        
+                        <p className="text-[10px] text-slate-500">
+                          După efectuarea plății, reveniți în această filă pentru a vă accesa contul configurat.
+                        </p>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowRedirectNotice(false);
+                            setCheckoutUrl(null);
+                          }}
+                          className="text-slate-400 hover:text-white text-xs mt-3 underline"
+                        >
+                          Revino la detalii și formular
+                        </button>
                       </div>
                     </div>
-
-                    {error && (
-                      <div className="text-xs text-red-400 flex items-center gap-1.5 font-medium bg-red-500/10 p-3 rounded-lg border border-red-500/20">
-                        <AlertCircle size={15} className="shrink-0" />
-                        <span>{error}</span>
+                  ) : (
+                    <form onSubmit={handleAutomatedCheckout} className="space-y-5">
+                      <div className="bg-slate-950/40 p-5 rounded-xl border border-slate-800 space-y-4">
+                        <div className="flex items-center gap-3 text-sm text-blue-400 font-medium">
+                          <Lock size={16} />
+                          <span>Plată automată securizată de Revolut Bank</span>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                            Confirmare Adresă de Email Tranzacție
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            placeholder="nume@companie.ro"
+                            value={payerEmail}
+                            onChange={(e) => setPayerEmail(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 hover:border-slate-700 focus:border-blue-500 outline-none rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 transition-colors font-sans"
+                          />
+                          <span className="block text-[10px] text-slate-500">
+                            Instrucțiunile de conectare la platformă se vor emite pe acest email după finalizare în siguranță.
+                          </span>
+                        </div>
                       </div>
-                    )}
 
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group shadow-xl shadow-blue-900/10 disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 size={18} className="animate-spin text-white" />
-                          <span>Generare sesiune securizată Revolut...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Efectuează Plata Securizată ({plan.price})</span>
-                          <ExternalLink size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                        </>
+                      {error && (
+                        <div className="text-xs text-red-400 flex items-center gap-1.5 font-medium bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                          <AlertCircle size={15} className="shrink-0" />
+                          <span>{error}</span>
+                        </div>
                       )}
-                    </button>
-                  </form>
+
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group shadow-xl shadow-blue-900/10 disabled:opacity-50"
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 size={18} className="animate-spin text-white" />
+                            <span>Generare sesiune securizată Revolut...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Efectuează Plata Securizată ({plan.price})</span>
+                            <ExternalLink size={16} className="group-hover:translate-x-0.5 transition-transform" />
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  )
                 ) : (
                   /* Manual Revolut Tag Transfer Fallback */
                   <div className="space-y-5 animate-in fade-in duration-200">

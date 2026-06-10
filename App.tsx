@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Onboarding } from './components/Onboarding';
 import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
@@ -24,6 +24,10 @@ type AppView = 'LANDING' | 'PACKAGE_SELECTION' | 'PAYMENT' | 'AUTH' | 'ONBOARDIN
 
 export default function App() {
   const [view, setView] = useState<AppView>('LANDING');
+  const viewRef = useRef<AppView>(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [userState, setUserState] = useState<UserState>({
     isOnboardingComplete: false,
@@ -100,12 +104,16 @@ export default function App() {
             }
           } else {
             // New user or no profile
-            setView('ONBOARDING');
+            // Only redirect to onboarding if they are NOT reading informational views (LANDING, PACKAGE_SELECTION, PAYMENT)
+            if (viewRef.current !== 'LANDING' && viewRef.current !== 'PACKAGE_SELECTION' && viewRef.current !== 'PAYMENT') {
+              setView('ONBOARDING');
+            }
           }
         } catch (error) {
           console.error("Error fetching user data from Firestore:", error);
-          // If there's an error (e.g., permission denied initially), still go to onboarding
-          setView('ONBOARDING');
+          if (viewRef.current !== 'LANDING' && viewRef.current !== 'PACKAGE_SELECTION' && viewRef.current !== 'PAYMENT') {
+            setView('ONBOARDING');
+          }
         }
       } else {
         // Logged out
@@ -301,6 +309,9 @@ export default function App() {
             onGetStarted={() => setView('PACKAGE_SELECTION')} 
             onLogin={() => setView('AUTH')} 
             onDemo={handleStartDemo}
+            currentUser={currentUser}
+            onContinueOnboarding={() => setView('ONBOARDING')}
+            onLogout={handleLogout}
         />
       );
   }

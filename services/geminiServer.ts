@@ -10,10 +10,75 @@ const getAi = (): GoogleGenAI => {
     if (!apiKey) {
       console.warn("WARNING: GEMINI_API_KEY / API_KEY has not been set in the server environment variables.");
     }
-    aiInstance = new GoogleGenAI({ apiKey: apiKey || "STANDBY_NO_KEY" });
+    aiInstance = new GoogleGenAI({ 
+      apiKey: apiKey || "STANDBY_NO_KEY",
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return aiInstance;
 };
+
+/**
+ * Robust content generation wrapper with exponential backoff and model fallbacks.
+ * Catches 503 "High Demand" or "Temporary Spikes" errors and gracefully retries or uses fallback models.
+ */
+async function generateContentWithRetry(
+  ai: GoogleGenAI,
+  params: {
+    model: string;
+    contents: any;
+    config?: any;
+  }
+): Promise<any> {
+  const modelsToTry = [
+    params.model,
+    "gemini-3.5-flash",
+    "gemini-3.1-pro-preview"
+  ];
+
+  // De-duplicate while preserving order
+  const models = Array.from(new Set(modelsToTry.filter(Boolean)));
+  let lastError: any = null;
+
+  for (const modelName of models) {
+    const maxRetries = 3;
+    let delay = 1000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`[Gemini API] Requesting ${modelName} (Attempt ${attempt}/${maxRetries})...`);
+        const response = await ai.models.generateContent({
+          ...params,
+          model: modelName,
+        });
+        if (response) {
+          return response;
+        }
+      } catch (err: any) {
+        lastError = err;
+        const errMessage = err.message || JSON.stringify(err);
+        const errStatus = err.status || err.response?.status;
+        console.warn(`[Gemini API] Attempt ${attempt} on model ${modelName} failed. Status: ${errStatus}, Error: ${errMessage}`);
+
+        // If it's a 401 (Authentication) or 400 (Bad Request), do not retry (it is a configuration issue)
+        if (errStatus === 401 || errStatus === 400 || errMessage.includes("apiKey") || errMessage.includes("API key")) {
+          break; // Try next model or fail
+        }
+
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          delay *= 2; // Exponential backoff
+        }
+      }
+    }
+  }
+
+  throw lastError || new Error("S-au epuizat toate încercările de generare prin Gemini API.");
+}
 
 /**
  * LOGICA DE EXPERTIZĂ PE INDUSTRIE
@@ -102,7 +167,7 @@ export const generateDocumentContentServer = async (
   profile: CompanyProfile,
   language: 'RO' | 'EN' = 'RO'
 ): Promise<string> => {
-  const model = "gemini-3-flash-preview";
+  const model = "gemini-3.5-flash";
   const industryContext = getIndustrySpecifics(profile.industry);
   const docSpecifics = getDocTypeSpecifics(docType);
   
@@ -142,7 +207,7 @@ export const generateDocumentContentServer = async (
 
   try {
     const ai = getAi();
-    const response = await ai.models.generateContent({
+    const response = await generateContentWithRetry(ai, {
       model,
       contents: prompt,
       config: { 
@@ -154,7 +219,11 @@ export const generateDocumentContentServer = async (
     return response.text || "Eroare la generarea conținutului juridic.";
   } catch (error: any) {
     console.error("Gemini Critical Error:", error);
-    return `Serviciul de redactare juridică întâmpină erori sau cheia API nu este configurată corect. Detalii: ${error.message || error}`;
+    let errorDetails = error.message || JSON.stringify(error);
+    if (errorDetails.includes("503") || errorDetails.includes("demand") || errorDetails.includes("UNAVAILABLE")) {
+      errorDetails = "Toate variantele modelului de AI sunt temporar suprasolicitate în Google Cloud de alte aplicații global. Vă rugăm frumos să reîncercați peste câteva secunde.";
+    }
+    return `Serviciul de redactare juridică întâmpină erori sau cheia API nu este configurată corect. Detalii: ${errorDetails}`;
   }
 };
 
@@ -162,7 +231,7 @@ export const generateDocumentContentServer = async (
  * ANALIZĂ DE COMPLIANCE ADAPTATĂ (Art. 4 & 5 Legea 190)
  */
 export const getComplianceAdviceServer = async (profile: CompanyProfile): Promise<string> => {
-    const model = "gemini-3-flash-preview";
+    const model = "gemini-3.5-flash";
     const prompt = `
         Ești un Auditor Senior. Analizează profilul: ${profile.industry}, ${profile.employeeCount} angajați, CCTV: ${profile.hasCCTV}, CNP Legitim: ${profile.processCNPLegitimateInterest}.
         Oferă 3 măsuri de conformitate CRITICE pentru România (Legea 190/2018). 
@@ -170,7 +239,7 @@ export const getComplianceAdviceServer = async (profile: CompanyProfile): Promis
     `;
     try {
         const ai = getAi();
-        const response = await ai.models.generateContent({ model, contents: prompt });
+        const response = await generateContentWithRetry(ai, { model, contents: prompt });
         return response.text || "";
     } catch (e: any) {
         console.error("Compliance advice server error:", e);
@@ -179,7 +248,7 @@ export const getComplianceAdviceServer = async (profile: CompanyProfile): Promis
 };
 
 export const generateDPIAReportServer = async (profile: CompanyProfile): Promise<{risk: 'low'|'medium'|'high', details: string}> => {
-    const model = "gemini-3-flash-preview";
+    const model = "gemini-3.5-flash";
     const prompt = `
         Analizează riscul DPIA conform listei ANSPDCP pentru:
         - Industrie: ${profile.industry}
@@ -191,7 +260,7 @@ export const generateDPIAReportServer = async (profile: CompanyProfile): Promise
     `;
     try {
         const ai = getAi();
-        const response = await ai.models.generateContent({ 
+        const response = await generateContentWithRetry(ai, { 
             model, 
             contents: prompt, 
             config: { responseMimeType: 'application/json' } 
