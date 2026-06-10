@@ -355,7 +355,7 @@ export default function App() {
   }
 
   if (view === 'ONBOARDING') {
-      return <Onboarding onComplete={handleOnboardingComplete} />;
+      return <Onboarding onComplete={handleOnboardingComplete} onCancel={() => setView('LANDING')} />;
   }
 
   if (activeDocId) {

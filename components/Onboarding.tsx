@@ -6,6 +6,7 @@ import { INDUSTRIES } from '../constants';
 
 interface OnboardingProps {
   onComplete: (profile: CompanyProfile) => void;
+  onCancel?: () => void;
 }
 
 const steps = [
@@ -15,7 +16,7 @@ const steps = [
   { id: 4, title: 'Date Specifice', icon: Database },
 ];
 
-export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onCancel }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [data, setData] = useState<Partial<CompanyProfile>>(() => {
     let initialName = '';
@@ -65,6 +66,17 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
       <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm" />
       
       <div className="relative z-10 w-full max-w-2xl">
+        {onCancel && (
+          <div className="flex justify-end mb-4 pr-1">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-xs text-slate-400 hover:text-white transition-all bg-slate-900/80 hover:bg-slate-950 border border-slate-800 hover:border-slate-700 px-4 py-2 rounded-full font-medium flex items-center gap-1 shadow-xl backdrop-blur-sm cursor-pointer"
+            >
+              <span>Mergi la pagina principală (Acasă)</span>
+            </button>
+          </div>
+        )}
         <div className="mb-8 text-center">
           <h1 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400 mb-2">
             Configurare GDPR Rapid
@@ -241,14 +253,26 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
           )}
 
           <div className="mt-8 pt-6 border-t border-slate-800 flex justify-between">
+            {currentStep === 1 && onCancel ? (
+              <button 
+                type="button"
+                onClick={onCancel}
+                className="px-6 py-2 rounded-lg text-slate-400 hover:text-white transition-colors border border-slate-800 hover:border-slate-700 font-medium text-sm"
+              >
+                Anulează și înapoi acasă
+              </button>
+            ) : (
+              <button 
+                type="button"
+                onClick={() => setCurrentStep(c => Math.max(1, c - 1))}
+                className={`px-6 py-2 rounded-lg text-slate-400 hover:text-white transition-colors ${currentStep === 1 ? 'opacity-0 cursor-default' : 'opacity-100'}`}
+                disabled={currentStep === 1}
+              >
+                Înapoi
+              </button>
+            )}
             <button 
-              onClick={() => setCurrentStep(c => Math.max(1, c - 1))}
-              className={`px-6 py-2 rounded-lg text-slate-400 hover:text-white transition-colors ${currentStep === 1 ? 'opacity-0 cursor-default' : 'opacity-100'}`}
-              disabled={currentStep === 1}
-            >
-              Înapoi
-            </button>
-            <button 
+              type="button"
               onClick={handleNext}
               disabled={!data.name || !data.cui || (currentStep === 1 && !data.industry)}
               className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-2 rounded-lg font-medium transition-all shadow-lg shadow-blue-900/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
