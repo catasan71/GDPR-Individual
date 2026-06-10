@@ -3,6 +3,11 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { Resend } from "resend";
 import axios from "axios";
+import { 
+  generateDocumentContentServer, 
+  getComplianceAdviceServer, 
+  generateDPIAReportServer 
+} from "./services/geminiServer";
 
 async function startServer() {
   const app = express();
@@ -112,6 +117,40 @@ async function startServer() {
     } catch (error: any) {
       console.error("Revolut check order status error:", error.response?.data || error.message);
       res.status(500).json({ error: error.message || "Failed to retrieve order status from Revolut" });
+    }
+  });
+
+  // Gemini API Proxy Endpoints
+  app.post("/api/gemini/generate-document", async (req, res) => {
+    try {
+      const { docType, profile, language } = req.body;
+      const content = await generateDocumentContentServer(docType, profile, language);
+      res.json({ content });
+    } catch (error: any) {
+      console.error("Gemini server-side error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate document content" });
+    }
+  });
+
+  app.post("/api/gemini/compliance-advice", async (req, res) => {
+    try {
+      const { profile } = req.body;
+      const advice = await getComplianceAdviceServer(profile);
+      res.json({ advice });
+    } catch (error: any) {
+      console.error("Compliance advice server-side error:", error);
+      res.status(500).json({ error: error.message || "Failed to get compliance advice" });
+    }
+  });
+
+  app.post("/api/gemini/dpia-report", async (req, res) => {
+    try {
+      const { profile } = req.body;
+      const report = await generateDPIAReportServer(profile);
+      res.json({ report });
+    } catch (error: any) {
+      console.error("DPIA report server-side error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate DPIA report" });
     }
   });
 
